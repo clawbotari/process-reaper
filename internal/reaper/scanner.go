@@ -19,15 +19,29 @@ type ProcessInfo struct {
 	CPUPercent  float64  `json:"cpu_percent,omitempty"`
 }
 
-// Scan returns all processes whose command line matches the given regex.
-func Scan(pattern *regexp.Regexp) ([]ProcessInfo, error) {
+// Scan returns all processes whose command line matches the given regex,
+// excluding the specified PIDs (typically the reaper's own PID and PID 1).
+func Scan(pattern *regexp.Regexp, excludePID ...int32) ([]ProcessInfo, error) {
 	pids, err := process.Pids()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list PIDs: %w", err)
 	}
 
+	// Build set of excluded PIDs
+	excluded := make(map[int32]bool)
+	for _, pid := range excludePID {
+		if pid > 0 {
+			excluded[pid] = true
+		}
+	}
+	// Always exclude PID 1 (systemd/init)
+	excluded[1] = true
+
 	var matches []ProcessInfo
 	for _, pid := range pids {
+		if excluded[pid] {
+			continue
+		}
 		p, err := process.NewProcess(pid)
 		if err != nil {
 			// Process may have exited between listing and opening
