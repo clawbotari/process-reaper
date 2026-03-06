@@ -1,0 +1,28 @@
+# Binaries
+process-reaper
+*.exe
+*.out
+
+# Dependency directories
+vendor/
+node_modules/
+
+# Go workspace file
+go.work
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*~
+
+# Logs
+*.log
+logs/
+
+# Test coverage
+coverage.txt
+profile.out
+
+# Environment files
+.env

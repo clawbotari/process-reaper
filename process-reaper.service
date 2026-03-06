@@ -1,0 +1,30 @@
+[Unit]
+Description=Intelligent Process Reaper
+Documentation=https://github.com/your-org/process-reaper
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+# Environment variables define the reaper's behavior
+Environment=REAPER_PATTERN=.*myapp.*
+Environment=REAPER_INTERVAL=60
+Environment=REAPER_LOG_DIR=/var/log/process-reaper
+Environment=REAPER_GRACE_PERIOD=10
+ExecStart=/usr/local/bin/process-reaper
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=process-reaper
+
+# Security hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/log/process-reaper
+
+[Install]
+WantedBy=multi-user.target
