@@ -21,8 +21,8 @@ A standalone Go daemon for Linux that identifies, analyzes, and kills hanging pr
 
 **Debian/Ubuntu**
 ```bash
-wget https://github.com/clawbotari/process-reaper/releases/download/v1.0.0/process-reaper_1.0.0_amd64.deb
-sudo dpkg -i process-reaper_1.0.0_amd64.deb
+wget https://github.com/clawbotari/process-reaper/releases/download/v1.1.0/process-reaper_1.1.0_amd64.deb
+sudo dpkg -i process-reaper_1.1.0_amd64.deb
 ```
 
 
@@ -32,8 +32,8 @@ sudo systemctl daemon-reload && sudo systemctl restart process-reaper
 ```
 **RHEL/CentOS/Fedora**
 ```bash
-wget https://github.com/clawbotari/process-reaper/releases/download/v1.0.0/process-reaper-1.0.0-1.x86_64.rpm
-sudo rpm -i process-reaper-1.0.0-1.x86_64.rpm
+wget https://github.com/clawbotari/process-reaper/releases/download/v1.1.0/process-reaper-1.1.0-1.x86_64.rpm
+sudo rpm -i process-reaper-1.1.0-1.x86_64.rpm
 ```
 
 After installation, edit the systemd service file to set your pattern and other options:
