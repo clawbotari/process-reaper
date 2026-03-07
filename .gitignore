@@ -26,3 +26,10 @@ profile.out
 
 # Environment files
 .env
+
+# Packaging artifacts
+dist/
+build/
+
+# Temporary test logs
+/tmp/reaper_*

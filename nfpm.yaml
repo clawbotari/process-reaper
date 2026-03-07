@@ -1,0 +1,40 @@
+# Intelligent Process Reaper package configuration
+name: "process-reaper"
+arch: "amd64"
+platform: "linux"
+version: "1.0.0"
+section: "utils"
+priority: "extra"
+maintainer: "Israel Pascual Fuente <israelpascualfuente@gmail.com>"
+description: |
+  Intelligent Process Reaper — A standalone Go daemon for Linux that identifies,
+  analyzes, and kills hanging processes based on configurable regex patterns.
+  Features forensic data collection (RSS/VMS, open files) before termination,
+  graceful SIGTERM → SIGKILL with configurable grace period, and audit logging.
+vendor: "Ari Ben Canaan"
+homepage: "https://github.com/israelpascual/process-reaper"
+license: "MIT"
+contents:
+  # Binary
+  - src: build/process-reaper
+    dst: /usr/local/bin/process-reaper
+    file_info:
+      mode: 0755
+      owner: root
+      group: root
+  # Systemd service unit
+  - src: process-reaper.service
+    dst: /lib/systemd/system/process-reaper.service
+    file_info:
+      mode: 0644
+      owner: root
+      group: root
+overrides:
+  deb:
+    scripts:
+      postinstall: scripts/postinst.sh
+      preremove: scripts/prerm.sh
+  rpm:
+    scripts:
+      postinstall: scripts/postinst.sh
+      preremove: scripts/prerm.sh
