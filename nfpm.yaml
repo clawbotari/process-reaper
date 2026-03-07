@@ -2,7 +2,7 @@
 name: "process-reaper"
 arch: "amd64"
 platform: "linux"
-version: "1.0.0"
+version: "1.1.0"
 section: "utils"
 priority: "extra"
 maintainer: "Israel Pascual Fuente <israelpascualfuente@gmail.com>"
@@ -11,8 +11,9 @@ description: |
   analyzes, and kills hanging processes based on configurable regex patterns.
   Features forensic data collection (RSS/VMS, open files) before termination,
   graceful SIGTERM → SIGKILL with configurable grace period, and audit logging.
+  Includes intelligent filtering by process uptime and orphan status (PPID == 1).
 vendor: "Ari Ben Canaan"
-homepage: "https://github.com/israelpascual/process-reaper"
+homepage: "https://github.com/clawbotari/process-reaper"
 license: "MIT"
 contents:
   # Binary
@@ -25,6 +26,14 @@ contents:
   # Systemd service unit
   - src: process-reaper.service
     dst: /lib/systemd/system/process-reaper.service
+    file_info:
+      mode: 0644
+      owner: root
+      group: root
+  # Logrotate configuration
+  - src: etc/logrotate.d/process-reaper
+    dst: /etc/logrotate.d/process-reaper
+    type: config
     file_info:
       mode: 0644
       owner: root

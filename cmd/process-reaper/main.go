@@ -14,7 +14,7 @@ import (
 	"process-reaper/internal/reaper"
 )
 
-const version = "1.0.0"
+const version = "1.1.0"
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -24,8 +24,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Configuration error: %v", err)
 	}
-	log.Printf("Configuration loaded: pattern=%s interval=%v log_dir=%s grace=%v",
-		cfg.Pattern, cfg.Interval, cfg.LogDir, cfg.GracePeriod)
+	log.Printf("Configuration loaded: pattern=%s interval=%v log_dir=%s grace=%v min_uptime=%v",
+		cfg.Pattern, cfg.Interval, cfg.LogDir, cfg.GracePeriod, cfg.MinUptime)
 
 	audit, err := logging.NewAudit(cfg.LogDir)
 	if err != nil {
@@ -66,7 +66,8 @@ func main() {
 
 func scanAndKill(cfg *config.Config, killer *reaper.Killer, audit *logging.Audit) error {
 	selfPID := int32(os.Getpid())
-	matches, err := reaper.Scan(cfg.Pattern, selfPID)
+	// Require orphan processes (PPID == 1) and minimum uptime
+	matches, err := reaper.Scan(cfg.Pattern, cfg.MinUptime, true, selfPID)
 	if err != nil {
 		return fmt.Errorf("scan failed: %w", err)
 	}

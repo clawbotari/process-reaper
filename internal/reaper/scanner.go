@@ -3,6 +3,7 @@ package reaper
 import (
 	"fmt"
 	"regexp"
+	"time"
 
 	"github.com/shirou/gopsutil/v3/process"
 )
@@ -21,7 +22,8 @@ type ProcessInfo struct {
 
 // Scan returns all processes whose command line matches the given regex,
 // excluding the specified PIDs (typically the reaper's own PID and PID 1).
-func Scan(pattern *regexp.Regexp, excludePID ...int32) ([]ProcessInfo, error) {
+// Additional filters: minimum uptime (minUptime) and require orphan (PPID == 1).
+func Scan(pattern *regexp.Regexp, minUptime time.Duration, requireOrphan bool, excludePID ...int32) ([]ProcessInfo, error) {
 	pids, err := process.Pids()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list PIDs: %w", err)
@@ -56,6 +58,26 @@ func Scan(pattern *regexp.Regexp, excludePID ...int32) ([]ProcessInfo, error) {
 
 		if !pattern.MatchString(cmdline) {
 			continue
+		}
+
+		// Check PPID == 1 if required
+		if requireOrphan {
+			ppid, err := p.Ppid()
+			if err != nil || ppid != 1 {
+				continue
+			}
+		}
+
+		// Check minimum uptime
+		if minUptime > 0 {
+			create, err := p.CreateTime()
+			if err != nil {
+				continue
+			}
+			uptime := time.Since(time.Unix(create/1000, 0))
+			if uptime < minUptime {
+				continue
+			}
 		}
 
 		info, err := collectForensicData(p, cmdline)

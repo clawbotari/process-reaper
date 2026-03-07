@@ -61,10 +61,13 @@ The reaper is configured exclusively through environment variables, which are be
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `REAPER_PATTERN` | `.*` | Regular expression to match against process command lines. |
-| `REAPER_INTERVAL` | `60` | Scan interval in seconds. |
-| `REAPER_LOG_DIR` | `/var/log/process-reaper` | Directory for forensic JSON files and audit log. |
-| `REAPER_GRACE_PERIOD` | `10` | Seconds to wait between SIGTERM and SIGKILL. |
+|  |  | Regular expression to match against process command lines. |
+|  |  | Scan interval in seconds. |
+|  |  | Directory for forensic JSON files and audit log. |
+|  |  | Seconds to wait between SIGTERM and SIGKILL. |
+|  |  | Minimum process age in minutes (only processes older than this are considered). |
+
+**Filtering logic:** The reaper now only selects processes that are *orphaned* (parent PID = 1) and have been running longer than  minutes. This prevents killing short‑lived or child processes that still have a living parent.
 
 **Example service file snippet** (`/lib/systemd/system/process-reaper.service`):
 ```ini
@@ -73,6 +76,7 @@ Environment=REAPER_PATTERN=python3.*myapp.*
 Environment=REAPER_INTERVAL=30
 Environment=REAPER_LOG_DIR=/var/log/process-reaper
 Environment=REAPER_GRACE_PERIOD=5
+Environment=REAPER_MIN_UPTIME=5
 ```
 
 ## Pattern Examples

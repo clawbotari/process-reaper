@@ -1,6 +1,6 @@
 [Unit]
 Description=Intelligent Process Reaper
-Documentation=https://github.com/your-org/process-reaper
+Documentation=https://github.com/clawbotari/process-reaper
 After=network.target
 
 [Service]
@@ -12,11 +12,12 @@ Environment=REAPER_PATTERN=.*myapp.*
 Environment=REAPER_INTERVAL=60
 Environment=REAPER_LOG_DIR=/var/log/process-reaper
 Environment=REAPER_GRACE_PERIOD=10
+Environment=REAPER_MIN_UPTIME=5
 ExecStart=/usr/local/bin/process-reaper
 Restart=on-failure
 RestartSec=10
-StandardOutput=journal
-StandardError=journal
+StandardOutput=file:/var/log/process-reaper/process-reaper-service.log
+StandardError=file:/var/log/process-reaper/process-reaper-service.log
 SyslogIdentifier=process-reaper
 
 # Security hardening

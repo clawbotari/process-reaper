@@ -13,6 +13,7 @@ const (
 	DefaultInterval     = 60  // seconds
 	DefaultLogDir       = "/var/log/process-reaper"
 	DefaultGracePeriod  = 10  // seconds
+	DefaultMinUptime    = 5   // minutes
 )
 
 // Config holds all reaper configuration parsed from environment variables.
@@ -21,6 +22,7 @@ type Config struct {
 	Interval    time.Duration  // REAPER_INTERVAL: scan frequency in seconds
 	LogDir      string         // REAPER_LOG_DIR: directory for logs and forensic JSON
 	GracePeriod time.Duration  // REAPER_GRACE_PERIOD: seconds between SIGTERM and SIGKILL
+	MinUptime   time.Duration  // REAPER_MIN_UPTIME: minimum process age in minutes
 }
 
 // Load reads environment variables and returns a validated Config.
@@ -52,11 +54,19 @@ func Load() (*Config, error) {
 	}
 	gracePeriod := time.Duration(graceSec) * time.Second
 
+	// REAPER_MIN_UPTIME
+	minUptimeMin := parseIntEnv("REAPER_MIN_UPTIME", DefaultMinUptime)
+	if minUptimeMin < 0 {
+		return nil, fmt.Errorf("REAPER_MIN_UPTIME must be >= 0, got %d", minUptimeMin)
+	}
+	minUptime := time.Duration(minUptimeMin) * time.Minute
+
 	return &Config{
 		Pattern:     pattern,
 		Interval:    interval,
 		LogDir:      logDir,
 		GracePeriod: gracePeriod,
+		MinUptime:   minUptime,
 	}, nil
 }
 
