@@ -25,6 +25,11 @@ wget https://github.com/clawbotari/process-reaper/releases/download/v1.0.0/proce
 sudo dpkg -i process-reaper_1.0.0_amd64.deb
 ```
 
+
+**Operational note:** After changing any variable in the systemd service file, run:
+```bash
+sudo systemctl daemon-reload && sudo systemctl restart process-reaper
+```
 **RHEL/CentOS/Fedora**
 ```bash
 wget https://github.com/clawbotari/process-reaper/releases/download/v1.0.0/process-reaper-1.0.0-1.x86_64.rpm
@@ -61,13 +66,12 @@ The reaper is configured exclusively through environment variables, which are be
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-|  |  | Regular expression to match against process command lines. |
-|  |  | Scan interval in seconds. |
-|  |  | Directory for forensic JSON files and audit log. |
-|  |  | Seconds to wait between SIGTERM and SIGKILL. |
-|  |  | Minimum process age in minutes (only processes older than this are considered). |
-
-**Filtering logic:** The reaper now only selects processes that are *orphaned* (parent PID = 1) and have been running longer than  minutes. This prevents killing short‑lived or child processes that still have a living parent.
+| `REAPER_PATTERN` | `.*` | Regular expression to match against process command lines. |
+| `REAPER_INTERVAL` | `60` | Scan interval in seconds. |
+| `REAPER_LOG_DIR` | `/var/log/process-reaper` | Directory for forensic JSON files and audit log. |
+| `REAPER_GRACE_PERIOD` | `10` | Seconds to wait between SIGTERM and SIGKILL. |
+| `REAPER_MIN_UPTIME` | `5` | Minimum process age in minutes (only processes older than this are considered). |
+**Filtering logic:** The reaper now only selects processes that are *orphaned* (parent PID = 1) and have been running longer than `REAPER_MIN_UPTIME` minutes. This prevents killing short‑lived or child processes that still have a living parent.
 
 **Example service file snippet** (`/lib/systemd/system/process-reaper.service`):
 ```ini
@@ -78,6 +82,14 @@ Environment=REAPER_LOG_DIR=/var/log/process-reaper
 Environment=REAPER_GRACE_PERIOD=5
 Environment=REAPER_MIN_UPTIME=5
 ```
+
+## Usage Examples
+
+| Scenario | Pattern | Description |
+|----------|---------|-------------|
+| **UVAPI Slave processes** | `uvapi_slave` | Cleans up child processes of the API that became orphaned after a main process crash. |
+| **Python generic workers** | `python3.*worker\.py` | Locates worker scripts that often hang in background tasks. |
+| **Java leaking processes** | `java.*-jar.*myapp\.jar` | For Java applications that fail to close threads properly after a crash. |
 
 ## Pattern Examples
 
