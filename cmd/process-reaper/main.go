@@ -14,10 +14,12 @@ import (
 	"process-reaper/internal/reaper"
 )
 
-const version = "1.2.0"
+const version = "1.2.1"
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	log.Printf("Process Reaper v%s initializing", version)
+	os.Stderr.Sync() // ensure log visibility on restart
 	log.Printf("Intelligent Process Reaper v%s starting", version)
 
 	cfg, err := config.Load()

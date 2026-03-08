@@ -116,6 +116,8 @@ func (c *Config) UVPatternMatches() bool {
 }
 
 // extractUVDebugPath reads the serverdebug file inside uvDir and extracts the debug directory path.
+// extractUVDebugPath reads the serverdebug file inside uvDir and extracts the debug directory path.
+// The file format is: "uvcs 10 /usr/uv/uvdebug/uvcs_" (third column is full debug file path).
 func extractUVDebugPath(uvDir string) (string, error) {
 	serverdebug := filepath.Join(uvDir, "serverdebug")
 	data, err := os.ReadFile(serverdebug)
@@ -125,19 +127,22 @@ func extractUVDebugPath(uvDir string) (string, error) {
 	lines := strings.Split(string(data), "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "debug=") || strings.HasPrefix(line, "DEBUG=") {
-			parts := strings.SplitN(line, "=", 2)
-			if len(parts) == 2 {
-				path := strings.TrimSpace(parts[1])
-				// If path is relative, make it absolute relative to uvDir
-				if !filepath.IsAbs(path) {
-					path = filepath.Join(uvDir, path)
-				}
-				return path, nil
+		if line == "" {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) >= 3 {
+			debugFile := fields[2]
+			// If path is relative, make it absolute relative to uvDir
+			if !filepath.IsAbs(debugFile) {
+				debugFile = filepath.Join(uvDir, debugFile)
 			}
+			// We need the directory containing the debug file(s)
+			debugDir := filepath.Dir(debugFile)
+			return debugDir, nil
 		}
 	}
-	return "", fmt.Errorf("debug= line not found in %s", serverdebug)
+	return "", fmt.Errorf("no valid three‑column line found in %s", serverdebug)
 }
 
 // getEnvOrDefault returns the environment variable value or a default.

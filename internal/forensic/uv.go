@@ -19,7 +19,6 @@ type UVData struct {
 	UVDebugFile string `json:"uv_debug_file,omitempty"`
 	UVError     string `json:"uv_error,omitempty"`
 	UVFile      string `json:"uv_file,omitempty"`
-	UVPS        string `json:"uv_ps,omitempty"`
 }
 
 // CollectUVData gathers UniVerse‑specific information for a process.
@@ -99,11 +98,6 @@ func CollectUVData(pid int32, uvDir, uvDebug string) UVData {
 			data.UVError = uvError
 			data.UVFile = uvFile
 		}
-	}
-
-	// 5. ps -fp $i --no-headers
-	if out, err := runUV("ps", "-fp", fmt.Sprintf("%d", pid), "--no-headers"); err == nil {
-		data.UVPS = out
 	}
 
 	return data
