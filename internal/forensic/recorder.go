@@ -11,22 +11,40 @@ import (
 )
 
 // Record writes a JSON file with forensic data about a process before termination.
-func Record(logDir string, pid int32) error {
+// If uvDir is non‑empty, UniVerse‑specific data is also collected.
+func Record(logDir, uvDir, uvDebug string, pid int32) error {
 	p, err := process.NewProcess(pid)
 	if err != nil {
 		return fmt.Errorf("cannot open process %d: %w", pid, err)
 	}
 
 	info := collectFullInfo(p)
-	info.Timestamp = time.Now().UTC()
+	info.Timestamp = time.Now() // local time
+
+	// Collect UniVerse data if directory provided
+	if uvDir != "" {
+		uv := CollectUVData(pid, uvDir, uvDebug)
+		info.UVData = &uv
+		// If a debug file was found, copy it compressed to logDir
+		if uv.UVDebugFile != "" {
+			debugPath := filepath.Join(uvDebug, uv.UVDebugFile)
+			if _, err := os.Stat(debugPath); err == nil {
+				copied, err := CopyDebugFile(debugPath, logDir)
+				if err == nil {
+					info.UVData.UVDebugFile = copied // update to compressed name
+				}
+			}
+		}
+	}
 
 	// Ensure log directory exists
 	if err := os.MkdirAll(logDir, 0755); err != nil {
 		return fmt.Errorf("cannot create log directory %s: %w", logDir, err)
 	}
 
-	// Write JSON file
-	filename := filepath.Join(logDir, fmt.Sprintf("reaper_%d_%s.json", pid, info.Timestamp.Format("20060102_150405")))
+	// Write JSON file with local timestamp in filename
+	filename := filepath.Join(logDir, fmt.Sprintf("reaper_%d_%s.json",
+		pid, info.Timestamp.Format("20060102_150405")))
 	data, err := json.MarshalIndent(info, "", "  ")
 	if err != nil {
 		return fmt.Errorf("cannot marshal JSON: %w", err)
@@ -51,6 +69,7 @@ type ForensicInfo struct {
 	Username    string    `json:"username"`
 	Status      []string  `json:"status"`
 	Timestamp   time.Time `json:"timestamp"`
+	UVData      *UVData   `json:"uv_data,omitempty"`
 }
 
 func collectFullInfo(p *process.Process) ForensicInfo {

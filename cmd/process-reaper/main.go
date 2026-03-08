@@ -14,7 +14,7 @@ import (
 	"process-reaper/internal/reaper"
 )
 
-const version = "1.1.0"
+const version = "1.2.0"
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -26,6 +26,18 @@ func main() {
 	}
 	log.Printf("Configuration loaded: pattern=%s interval=%v log_dir=%s grace=%v min_uptime=%v",
 		cfg.Pattern, cfg.Interval, cfg.LogDir, cfg.GracePeriod, cfg.MinUptime)
+	if cfg.HeartbeatQuiet {
+		log.Print("Heartbeat logs are suppressed (REAPER_HEARTBEAT_QUIET=true)")
+	}
+	if !cfg.Kill {
+		log.Print("AUDIT MODE enabled – processes will be identified but NOT killed (REAPER_KILL=false)")
+	}
+	if cfg.UVEnabled() {
+		log.Printf("UniVerse integration enabled: base=%s debug=%s", cfg.UVDir, cfg.UVDebug)
+		if cfg.UVPatternMatches() {
+			log.Print("Pattern matches 'uvapi_slave', UniVerse forensic extensions will be applied")
+		}
+	}
 
 	audit, err := logging.NewAudit(cfg.LogDir)
 	if err != nil {
@@ -33,7 +45,7 @@ func main() {
 	}
 	defer audit.Close()
 
-	killer := reaper.NewKiller(cfg.GracePeriod, cfg.LogDir, audit)
+	killer := reaper.NewKiller(cfg.GracePeriod, cfg.LogDir, audit, cfg.Kill, cfg.UVDir, cfg.UVDebug)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -74,6 +86,9 @@ func scanAndKill(cfg *config.Config, killer *reaper.Killer, audit *logging.Audit
 	audit.LogScan(len(matches))
 
 	if len(matches) == 0 {
+		if !cfg.HeartbeatQuiet {
+			log.Printf("[Heartbeat] Scan complete. No candidates found.")
+		}
 		return nil
 	}
 

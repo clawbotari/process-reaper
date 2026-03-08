@@ -71,6 +71,10 @@ The reaper is configured exclusively through environment variables, which are be
 | `REAPER_LOG_DIR` | `/var/log/process-reaper` | Directory for forensic JSON files and audit log. |
 | `REAPER_GRACE_PERIOD` | `10` | Seconds to wait between SIGTERM and SIGKILL. |
 | `REAPER_MIN_UPTIME` | `5` | Minimum process age in minutes (only processes older than this are considered). |
+| `REAPER_HEARTBEAT_QUIET` | `false` | Suppress heartbeat logs when no candidates are found. |
+| `REAPER_KILL` | `true` | If `false`, the reaper only logs and collects forensic data (audit mode). |
+| `REAPER_UV_DIR` | *(none)* | Path to UniVerse installation directory (enables deep forensic collection for `uvapi_slave` processes). |
+| `REAPER_UV_DEBUG` | *(auto‑detected)* | Path to UniVerse debug directory (read from `serverdebug`). |
 **Filtering logic:** The reaper now only selects processes that are *orphaned* (parent PID = 1) and have been running longer than `REAPER_MIN_UPTIME` minutes. This prevents killing short‑lived or child processes that still have a living parent.
 
 **Example service file snippet** (`/lib/systemd/system/process-reaper.service`):
@@ -81,7 +85,29 @@ Environment=REAPER_INTERVAL=30
 Environment=REAPER_LOG_DIR=/var/log/process-reaper
 Environment=REAPER_GRACE_PERIOD=5
 Environment=REAPER_MIN_UPTIME=5
+Environment=REAPER_HEARTBEAT_QUIET=false
+Environment=REAPER_KILL=true
+Environment=REAPER_UV_DIR=/opt/uv
+Environment=REAPER_UV_DEBUG=/opt/uv/debug
 ```
+
+
+## UniVerse Deep Forensic Integration
+
+When `REAPER_UV_DIR` is set and the pattern matches `uvapi_slave`, the reaper performs extended forensic collection for UniVerse processes:
+
+1. **Initialization** – Reads `serverdebug` inside `REAPER_UV_DIR` to locate the debug directory (`REAPER_UV_DEBUG`).
+2. **Extended forensic fields** (added to the JSON report):
+   - `port_status` – Output of `bin/port.status PID … LAYER.STACK FILEMAP`.
+   - `list_readu` – Lock information for the process's USERNO.
+   - `user_no` – USERNO extracted via `bin/listuser` or `bin/list_readu`.
+   - `uv_debug_file` – Name of the UniVerse debug file containing the PID.
+   - `uv_error` – Last `returncode=` found in the debug file.
+   - `uv_file` – Last `arg[0]=` (file path) from the debug file.
+   - `uv_ps` – Output of `ps -fp PID --no-headers`.
+3. **Debug file preservation** – The relevant debug file is copied to `REAPER_LOG_DIR` and compressed (`.gz`).
+
+All UniVerse commands are executed with the working directory set to `REAPER_UV_DIR`. If a command fails or a path is missing, the error is logged and the reaper continues (no blocking).
 
 ## Usage Examples
 
