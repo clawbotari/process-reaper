@@ -16,6 +16,7 @@ const (
 	DefaultLogDir       = "/var/log/process-reaper"
 	DefaultGracePeriod  = 10  // seconds
 	DefaultMinUptime    = 5   // minutes
+	DefaultRetentionDays = 30  // days
 )
 
 // Config holds all reaper configuration parsed from environment variables.
@@ -29,6 +30,7 @@ type Config struct {
 	Kill           bool           // REAPER_KILL: actually send signals (false = audit mode)
 	UVDir          string         // REAPER_UV_DIR: UniVerse installation directory (optional)
 	UVDebug        string         // REAPER_UV_DEBUG: UniVerse debug directory (extracted from serverdebug)
+	RetentionDays   int           // REAPER_RETENTION_DAYS: forensic file retention in days
 }
 
 // Load reads environment variables and returns a validated Config.
@@ -91,7 +93,13 @@ func Load() (*Config, error) {
 		}
 	}
 
-	return &Config{
+	
+	// REAPER_RETENTION_DAYS
+	retentionDays := parseIntEnv("REAPER_RETENTION_DAYS", DefaultRetentionDays)
+	if retentionDays < 0 {
+		return nil, fmt.Errorf("REAPER_RETENTION_DAYS must be >= 0, got %d", retentionDays)
+	}
+return &Config{
 		Pattern:        pattern,
 		Interval:       interval,
 		LogDir:         logDir,
@@ -101,6 +109,7 @@ func Load() (*Config, error) {
 		Kill:           kill,
 		UVDir:          uvDir,
 		UVDebug:        uvDebug,
+		RetentionDays:   retentionDays,
 	}, nil
 }
 

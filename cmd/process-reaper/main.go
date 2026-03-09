@@ -11,27 +11,24 @@ import (
 
 	"process-reaper/internal/config"
 	"process-reaper/internal/logging"
+	"process-reaper/internal/forensic"
 	"process-reaper/internal/reaper"
-	"io"
 	"path/filepath"
 )
 
-const version = "1.2.2"
+const version = "1.2.3"
 
 
 // setupLogging configures logging to write both to stdout and a rolling log file.
-func setupLogging(logDir string) error {
+// ensureDirectories creates the log and forensic directories if they do not exist.
+func ensureDirectories(logDir string) error {
 	if err := os.MkdirAll(logDir, 0755); err != nil {
-		return fmt.Errorf("cannot create log directory: %w", err)
+		return fmt.Errorf("cannot create log directory: %%w", err)
 	}
-	logPath := filepath.Join(logDir, "process-reaper.log")
-	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		return fmt.Errorf("cannot open log file: %w", err)
+	forensicDir := filepath.Join(logDir, "forensics")
+	if err := os.MkdirAll(forensicDir, 0755); err != nil {
+		return fmt.Errorf("cannot create forensic directory: %%w", err)
 	}
-	// Write to both stdout and file
-	multi := io.MultiWriter(os.Stdout, f)
-	log.SetOutput(multi)
 	return nil
 }
 func main() {
@@ -47,7 +44,7 @@ func main() {
 		log.Fatalf("Configuration error: %v", err)
 	}
 	// Setup logging to file and stdout
-	if err := setupLogging(cfg.LogDir); err != nil {
+	if err := ensureDirectories(cfg.LogDir); err != nil {
 		log.Printf("Failed to setup logging: %v", err)
 	}
 	log.Printf("Configuration loaded: pattern=%s interval=%v log_dir=%s grace=%v min_uptime=%v",
@@ -110,6 +107,13 @@ func scanAndKill(cfg *config.Config, killer *reaper.Killer, audit *logging.Audit
 		return fmt.Errorf("scan failed: %w", err)
 	}
 	audit.LogScan(len(matches))
+		// Cleanup old forensic files
+		deleted, err := forensic.CleanupForensics(cfg.LogDir, cfg.RetentionDays)
+		if err != nil {
+			log.Printf("Cleanup failed: %%v", err)
+		} else if deleted > 0 {
+			log.Printf("[Maintenance] Deleted %%d old forensic files older than %%d days.", deleted, cfg.RetentionDays)
+		}
 
 	if len(matches) == 0 {
 		if !cfg.HeartbeatQuiet {

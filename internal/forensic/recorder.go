@@ -12,6 +12,8 @@ import (
 
 // Record writes a JSON file with forensic data about a process before termination.
 // If uvDir is non‑empty, UniVerse‑specific data is also collected.
+// Record writes a JSON file with forensic data about a process before termination.
+// If uvDir is non‑empty, UniVerse‑specific data is also collected.
 func Record(logDir, uvDir, uvDebug string, pid int32) error {
 	p, err := process.NewProcess(pid)
 	if err != nil {
@@ -21,15 +23,21 @@ func Record(logDir, uvDir, uvDebug string, pid int32) error {
 	info := collectFullInfo(p)
 	info.Timestamp = time.Now() // local time
 
+	// Forensic files go into a dedicated subdirectory
+	forensicDir := filepath.Join(logDir, "forensics")
+	if err := os.MkdirAll(forensicDir, 0755); err != nil {
+		return fmt.Errorf("cannot create forensic directory %s: %w", forensicDir, err)
+	}
+
 	// Collect UniVerse data if directory provided
 	if uvDir != "" {
 		uv := CollectUVData(pid, uvDir, uvDebug)
 		info.UVData = &uv
-		// If a debug file was found, copy it compressed to logDir
+		// If a debug file was found, copy it compressed to forensicDir
 		if uv.UVDebugFile != "" {
 			debugPath := filepath.Join(uvDebug, uv.UVDebugFile)
 			if _, err := os.Stat(debugPath); err == nil {
-				copied, err := CopyDebugFile(debugPath, logDir)
+				copied, err := CopyDebugFile(debugPath, forensicDir)
 				if err == nil {
 					info.UVData.UVDebugFile = copied // update to compressed name
 				}
@@ -37,24 +45,20 @@ func Record(logDir, uvDir, uvDebug string, pid int32) error {
 		}
 	}
 
-	// Ensure log directory exists
-	if err := os.MkdirAll(logDir, 0755); err != nil {
-		return fmt.Errorf("cannot create log directory %s: %w", logDir, err)
-	}
-
 	// Write JSON file with local timestamp in filename
-	filename := filepath.Join(logDir, fmt.Sprintf("reaper_%d_%s.json",
+	filename := filepath.Join(forensicDir, fmt.Sprintf("reaper_%%d_%%s.json",
 		pid, info.Timestamp.Format("20060102_150405")))
 	data, err := json.MarshalIndent(info, "", "  ")
 	if err != nil {
-		return fmt.Errorf("cannot marshal JSON: %w", err)
+		return fmt.Errorf("cannot marshal JSON: %%w", err)
 	}
 
 	if err := os.WriteFile(filename, data, 0644); err != nil {
-		return fmt.Errorf("cannot write forensic file %s: %w", filename, err)
+		return fmt.Errorf("cannot write forensic file %%s: %%w", filename, err)
 	}
 	return nil
 }
+
 
 // ForensicInfo contains all collected data.
 type ForensicInfo struct {

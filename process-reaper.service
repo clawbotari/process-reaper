@@ -19,6 +19,8 @@ Environment=REAPER_UV_DIR=
 Environment=REAPER_KILL=true
 # Suppress heartbeat logs when no candidates are found
 Environment=REAPER_HEARTBEAT_QUIET=false
+# Forensic retention (days)
+Environment=REAPER_RETENTION_DAYS=30
 ExecStart=/usr/local/bin/process-reaper
 Restart=on-failure
 RestartSec=10

@@ -1,5 +1,5 @@
 # Intelligent Process Reaper
-**v1.2.2** – Fixes log overlap on service restart and improves UniVerse forensic robustness.
+**v1.2.3** – Fixes log overlap on service restart and improves UniVerse forensic robustness.
 
 ![Go Version](https://img.shields.io/badge/go-1.26.1-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -22,8 +22,8 @@ A standalone Go daemon for Linux that identifies, analyzes, and kills hanging pr
 
 **Debian/Ubuntu**
 ```bash
-wget https://github.com/clawbotari/process-reaper/releases/download/v1.2.2/process-reaper_1.2.2_amd64.deb
-sudo dpkg -i process-reaper_1.2.2_amd64.deb
+wget https://github.com/clawbotari/process-reaper/releases/download/v1.2.3/process-reaper_1.2.3_amd64.deb
+sudo dpkg -i process-reaper_1.2.3_amd64.deb
 ```
 
 
@@ -33,8 +33,8 @@ sudo systemctl daemon-reload && sudo systemctl restart process-reaper
 ```
 **RHEL/CentOS/Fedora**
 ```bash
-wget https://github.com/clawbotari/process-reaper/releases/download/v1.2.2/process-reaper-1.2.2-1.x86_64.rpm
-sudo rpm -i process-reaper-1.2.2-1.x86_64.rpm
+wget https://github.com/clawbotari/process-reaper/releases/download/v1.2.3/process-reaper-1.2.3-1.x86_64.rpm
+sudo rpm -i process-reaper-1.2.3-1.x86_64.rpm
 ```
 
 After installation, edit the systemd service file to set your pattern and other options:
@@ -76,6 +76,7 @@ The reaper is configured exclusively through environment variables, which are be
 | `REAPER_KILL` | `true` | If `false`, the reaper only logs and collects forensic data (audit mode). |
 | `REAPER_UV_DIR` | *(none)* | Path to UniVerse installation directory (enables deep forensic collection for `uvapi_slave` processes). |
 | `REAPER_UV_DEBUG` | *(auto‑detected)* | Path to UniVerse debug directory (read from `serverdebug`). |
+| `REAPER_RETENTION_DAYS` | `30` | Forensic file retention in days (automatic cleanup). |
 **Filtering logic:** The reaper now only selects processes that are *orphaned* (parent PID = 1) and have been running longer than `REAPER_MIN_UPTIME` minutes. This prevents killing short‑lived or child processes that still have a living parent.
 
 **Example service file snippet** (`/lib/systemd/system/process-reaper.service`):
