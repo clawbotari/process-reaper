@@ -22,8 +22,8 @@ Environment=REAPER_HEARTBEAT_QUIET=false
 ExecStart=/usr/local/bin/process-reaper
 Restart=on-failure
 RestartSec=10
-StandardOutput=file:/var/log/process-reaper/process-reaper-service.log
-StandardError=file:/var/log/process-reaper/process-reaper-service.log
+StandardOutput=append:/var/log/process-reaper/process-reaper-service.log
+StandardError=append:/var/log/process-reaper/process-reaper-service.log
 SyslogIdentifier=process-reaper
 
 # Security hardening

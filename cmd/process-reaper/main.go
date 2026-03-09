@@ -12,12 +12,32 @@ import (
 	"process-reaper/internal/config"
 	"process-reaper/internal/logging"
 	"process-reaper/internal/reaper"
+	"io"
+	"path/filepath"
 )
 
-const version = "1.2.1"
+const version = "1.2.2"
 
+
+// setupLogging configures logging to write both to stdout and a rolling log file.
+func setupLogging(logDir string) error {
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		return fmt.Errorf("cannot create log directory: %w", err)
+	}
+	logPath := filepath.Join(logDir, "process-reaper.log")
+	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return fmt.Errorf("cannot open log file: %w", err)
+	}
+	// Write to both stdout and file
+	multi := io.MultiWriter(os.Stdout, f)
+	log.SetOutput(multi)
+	return nil
+}
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	// Force a welcome message to flush systemd pipe
+	fmt.Fprintln(os.Stdout, "Process Reaper " + version + " starting (log flush)")
 	log.Printf("Process Reaper v%s initializing", version)
 	os.Stderr.Sync() // ensure log visibility on restart
 	log.Printf("Intelligent Process Reaper v%s starting", version)
@@ -25,6 +45,10 @@ func main() {
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Configuration error: %v", err)
+	}
+	// Setup logging to file and stdout
+	if err := setupLogging(cfg.LogDir); err != nil {
+		log.Printf("Failed to setup logging: %v", err)
 	}
 	log.Printf("Configuration loaded: pattern=%s interval=%v log_dir=%s grace=%v min_uptime=%v",
 		cfg.Pattern, cfg.Interval, cfg.LogDir, cfg.GracePeriod, cfg.MinUptime)

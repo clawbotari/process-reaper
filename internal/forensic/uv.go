@@ -42,7 +42,10 @@ func CollectUVData(pid int32, uvDir, uvDebug string) UVData {
 	}
 
 	// 1. port.status
-	if out, err := runUV(filepath.Join(uvDir, "bin", "port.status"), "PID", fmt.Sprintf("%d", pid), "LAYER.STACK", "FILEMAP"); err == nil {
+	out, err := runUV(filepath.Join(uvDir, "bin", "port.status"), "PID", fmt.Sprintf("%d", pid), "LAYER.STACK", "FILEMAP")
+	if err != nil || out == "" {
+		data.PortStatus = "No port status info or command failed"
+	} else {
 		data.PortStatus = out
 	}
 
