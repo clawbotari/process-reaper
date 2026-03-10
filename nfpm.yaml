@@ -2,7 +2,7 @@
 name: "process-reaper"
 arch: "amd64"
 platform: "linux"
-version: "1.2.3"
+version: "1.2.4"
 section: "utils"
 priority: "extra"
 maintainer: "Israel Pascual Fuente <israelpascualfuente@gmail.com>"

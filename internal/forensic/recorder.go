@@ -46,15 +46,15 @@ func Record(logDir, uvDir, uvDebug string, pid int32) error {
 	}
 
 	// Write JSON file with local timestamp in filename
-	filename := filepath.Join(forensicDir, fmt.Sprintf("reaper_%%d_%%s.json",
+	filename := filepath.Join(forensicDir, fmt.Sprintf("reaper_%d_%s.json",
 		pid, info.Timestamp.Format("20060102_150405")))
 	data, err := json.MarshalIndent(info, "", "  ")
 	if err != nil {
-		return fmt.Errorf("cannot marshal JSON: %%w", err)
+		return fmt.Errorf("cannot marshal JSON: %w", err)
 	}
 
 	if err := os.WriteFile(filename, data, 0644); err != nil {
-		return fmt.Errorf("cannot write forensic file %%s: %%w", filename, err)
+		return fmt.Errorf("cannot write forensic file %s: %w", filename, err)
 	}
 	return nil
 }
