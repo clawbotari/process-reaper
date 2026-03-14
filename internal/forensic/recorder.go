@@ -14,7 +14,7 @@ import (
 // If uvDir is non‑empty, UniVerse‑specific data is also collected.
 // Record writes a JSON file with forensic data about a process before termination.
 // If uvDir is non‑empty, UniVerse‑specific data is also collected.
-func Record(logDir, uvDir, uvDebug string, pid int32) error {
+func Record(logDir, uvDir, uvDebug string, pid int32, debug bool) error {
 	p, err := process.NewProcess(pid)
 	if err != nil {
 		return fmt.Errorf("cannot open process %d: %w", pid, err)
@@ -31,7 +31,7 @@ func Record(logDir, uvDir, uvDebug string, pid int32) error {
 
 	// Collect UniVerse data if directory provided
 	if uvDir != "" {
-		uv := CollectUVData(pid, uvDir, uvDebug)
+		uv := CollectUVData(pid, uvDir, uvDebug, debug)
 		info.UVData = &uv
 		// If a debug file was found, copy it compressed to forensicDir
 		if uv.UVDebugFile != "" {

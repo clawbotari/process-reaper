@@ -16,7 +16,7 @@ import (
 	"path/filepath"
 )
 
-const version = "1.2.4"
+const version = "1.2.5"
 
 
 // setupLogging configures logging to write both to stdout and a rolling log file.
@@ -68,7 +68,7 @@ func main() {
 	}
 	defer audit.Close()
 
-	killer := reaper.NewKiller(cfg.GracePeriod, cfg.LogDir, audit, cfg.Kill, cfg.UVDir, cfg.UVDebug)
+	killer := reaper.NewKiller(cfg.GracePeriod, cfg.LogDir, audit, cfg.Kill, cfg.UVDir, cfg.UVDebug, cfg.DebugForensic)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

@@ -17,6 +17,7 @@ const (
 	DefaultGracePeriod  = 10  // seconds
 	DefaultMinUptime    = 5   // minutes
 	DefaultRetentionDays = 30  // days
+	DefaultDebugForensic = false // REAPER_DEBUG_FORENSIC: log detailed forensic command errors
 )
 
 // Config holds all reaper configuration parsed from environment variables.
@@ -28,6 +29,7 @@ type Config struct {
 	MinUptime      time.Duration  // REAPER_MIN_UPTIME: minimum process age in minutes
 	HeartbeatQuiet bool           // REAPER_HEARTBEAT_QUIET: suppress heartbeat logs
 	Kill           bool           // REAPER_KILL: actually send signals (false = audit mode)
+	DebugForensic bool           // REAPER_DEBUG_FORENSIC: log detailed forensic command errors
 	UVDir          string         // REAPER_UV_DIR: UniVerse installation directory (optional)
 	UVDebug        string         // REAPER_UV_DEBUG: UniVerse debug directory (extracted from serverdebug)
 	RetentionDays   int           // REAPER_RETENTION_DAYS: forensic file retention in days
@@ -76,6 +78,8 @@ func Load() (*Config, error) {
 	kill := parseBoolEnv("REAPER_KILL", true)
 
 	// REAPER_UV_DIR (optional)
+	// REAPER_DEBUG_FORENSIC
+	debugForensic := parseBoolEnv("REAPER_DEBUG_FORENSIC", DefaultDebugForensic)
 	uvDir := strings.TrimRight(os.Getenv("REAPER_UV_DIR"), "/")
 	var uvDebug string
 	if uvDir != "" {
@@ -109,6 +113,7 @@ return &Config{
 		Kill:           kill,
 		UVDir:          uvDir,
 		UVDebug:        uvDebug,
+		DebugForensic: debugForensic,
 		RetentionDays:   retentionDays,
 	}, nil
 }

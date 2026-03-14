@@ -21,6 +21,8 @@ Environment=REAPER_KILL=true
 Environment=REAPER_HEARTBEAT_QUIET=false
 # Forensic retention (days)
 Environment=REAPER_RETENTION_DAYS=30
+# Debug forensic commands
+Environment=REAPER_DEBUG_FORENSIC=false
 ExecStart=/usr/local/bin/process-reaper
 Restart=on-failure
 RestartSec=10

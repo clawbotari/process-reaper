@@ -19,10 +19,11 @@ type Killer struct {
 	KillEnabled bool
 	UVDir       string
 	UVDebug     string
+	DebugForensic bool
 }
 
 // NewKiller creates a Killer with the given configuration.
-func NewKiller(gracePeriod time.Duration, logDir string, audit *logging.Audit, killEnabled bool, uvDir, uvDebug string) *Killer {
+func NewKiller(gracePeriod time.Duration, logDir string, audit *logging.Audit, killEnabled bool, uvDir, uvDebug string, debugForensic bool) *Killer {
 	return &Killer{
 		GracePeriod: gracePeriod,
 		LogDir:      logDir,
@@ -30,6 +31,7 @@ func NewKiller(gracePeriod time.Duration, logDir string, audit *logging.Audit, k
 		KillEnabled: killEnabled,
 		UVDir:       uvDir,
 		UVDebug:     uvDebug,
+		DebugForensic: debugForensic,
 	}
 }
 
@@ -37,7 +39,7 @@ func NewKiller(gracePeriod time.Duration, logDir string, audit *logging.Audit, k
 // If KillEnabled is false, it only records forensic data and logs an audit message.
 func (k *Killer) Kill(pid int32) error {
 	// 1. Forensic recording (including UniVerse data if configured)
-	if err := forensic.Record(k.LogDir, k.UVDir, k.UVDebug, pid); err != nil {
+	if err := forensic.Record(k.LogDir, k.UVDir, k.UVDebug, pid, k.DebugForensic); err != nil {
 		k.Audit.LogForensic(pid, false)
 		return fmt.Errorf("forensic recording failed for PID %d: %w", pid, err)
 	}

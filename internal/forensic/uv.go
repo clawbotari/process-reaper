@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"log"
 )
 
 // UVData holds UniVerse‑specific forensic information.
@@ -24,35 +25,63 @@ type UVData struct {
 // CollectUVData gathers UniVerse‑specific information for a process.
 // If uvDir is empty or any command fails, the function returns an empty UVData
 // (no error is propagated, to avoid blocking the reaper).
-func CollectUVData(pid int32, uvDir, uvDebug string) UVData {
+func CollectUVData(pid int32, uvDir, uvDebug string, debug bool) UVData {
 	var data UVData
 	if uvDir == "" {
 		return data
 	}
 
 	// Ensure commands are executed inside the UniVerse installation directory
-	runUV := func(cmd string, args ...string) (string, error) {
+	// Prepare environment for UniVerse commands
+	baseEnv := os.Environ()
+	uvEnv := make([]string, len(baseEnv))
+	copy(uvEnv, baseEnv)
+	uvEnv = append(uvEnv, "UVHOME="+uvDir)
+	// Prepend uvDir/bin to PATH
+	pathFound := false
+	for i, e := range uvEnv {
+		if strings.HasPrefix(e, "PATH=") {
+			uvEnv[i] = "PATH=" + filepath.Join(uvDir, "bin") + ":" + strings.TrimPrefix(e, "PATH=")
+			pathFound = true
+			break
+		}
+	}
+	if !pathFound {
+		uvEnv = append(uvEnv, "PATH="+filepath.Join(uvDir, "bin")+":"+os.Getenv("PATH"))
+	}
+
+	runUV := func(cmd string, args ...string) (stdout, stderr string, err error) {
 		c := exec.Command(cmd, args...)
 		c.Dir = uvDir
-		var out bytes.Buffer
-		c.Stdout = &out
-		c.Stderr = &out
-		err := c.Run()
-		return strings.TrimSpace(out.String()), err
+		c.Env = uvEnv
+		var outBuf, errBuf bytes.Buffer
+		c.Stdout = &outBuf
+		c.Stderr = &errBuf
+		err = c.Run()
+		stdout = strings.TrimSpace(outBuf.String())
+		stderr = strings.TrimSpace(errBuf.String())
+		if debug && (err != nil || stdout == "") {
+			log.Printf("[DEBUG forensic] cmd=%s args=%v", cmd, args)
+			log.Printf("[DEBUG forensic] UVHOME=%s PATH prefixed with %s/bin", uvDir, uvDir)
+			log.Printf("[DEBUG forensic] stdout=%q stderr=%q error=%v", stdout, stderr, err)
+		}
+		return
 	}
 
 	// 1. port.status
-	out, err := runUV(filepath.Join(uvDir, "bin", "port.status"), "PID", fmt.Sprintf("%d", pid), "LAYER.STACK", "FILEMAP")
-	if err != nil || out == "" {
+	stdout, stderr, err := runUV(filepath.Join(uvDir, "bin", "port.status"), "PID", fmt.Sprintf("%d", pid), "LAYER.STACK", "FILEMAP")
+	if err != nil || stdout == "" {
 		data.PortStatus = "No port status info or command failed"
+		if debug {
+			log.Printf("[DEBUG forensic] port.status failed: err=%v stderr=%q", err, stderr)
+		}
 	} else {
-		data.PortStatus = out
+		data.PortStatus = stdout
 	}
-
 	// 2. listuser / list_readu to find USERNO
 	userNo := ""
-	if out, err := runUV(filepath.Join(uvDir, "bin", "listuser")); err == nil {
-		scanner := bufio.NewScanner(strings.NewReader(out))
+	if stdout, _, err := runUV(filepath.Join(uvDir, "bin", "listuser")); err == nil {
+		scanner := bufio.NewScanner(strings.NewReader(stdout))
 		for scanner.Scan() {
 			line := scanner.Text()
 			if strings.Contains(line, fmt.Sprintf("%d", pid)) {
@@ -65,8 +94,8 @@ func CollectUVData(pid int32, uvDir, uvDebug string) UVData {
 		}
 	}
 	if userNo == "" {
-		if out, err := runUV(filepath.Join(uvDir, "bin", "list_readu")); err == nil {
-			scanner := bufio.NewScanner(strings.NewReader(out))
+		if stdout, _, err := runUV(filepath.Join(uvDir, "bin", "list_readu")); err == nil {
+			scanner := bufio.NewScanner(strings.NewReader(stdout))
 			for scanner.Scan() {
 				line := scanner.Text()
 				if strings.Contains(line, fmt.Sprintf("%d", pid)) {
@@ -83,8 +112,8 @@ func CollectUVData(pid int32, uvDir, uvDebug string) UVData {
 
 	// 3. list_readu every USER $USERNO
 	if userNo != "" {
-		if out, err := runUV(filepath.Join(uvDir, "bin", "list_readu"), "every", "USER", userNo); err == nil {
-			data.ListReadU = out
+		if stdout, _, err := runUV(filepath.Join(uvDir, "bin", "list_readu"), "every", "USER", userNo); err == nil {
+			data.ListReadU = stdout
 		}
 	} else {
 		data.ListReadU = "No locks found"
