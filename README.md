@@ -74,9 +74,10 @@ The reaper is configured exclusively through environment variables, which are be
 | `REAPER_MIN_UPTIME` | `5` | Minimum process age in minutes (only processes older than this are considered). |
 | `REAPER_HEARTBEAT_QUIET` | `false` | Suppress heartbeat logs when no candidates are found. |
 | `REAPER_KILL` | `true` | If `false`, the reaper only logs and collects forensic data (audit mode). |
-| `REAPER_UV_DIR` | *(none)* | Path to UniVerse installation directory (enables deep forensic collection for `uvapi_slave` processes). |
+| `REAPER_UV_DIR` | */usr/uv* | Path to UniVerse installation directory (enables deep forensic collection for `uvapi_slave` processes). |
 | `REAPER_UV_DEBUG` | *(auto‑detected)* | Path to UniVerse debug directory (read from `serverdebug`). |
 | `REAPER_RETENTION_DAYS` | `30` | Forensic file retention in days (automatic cleanup). |
+| `REAPER_DEBUG_FORENSIC` | `false` | Log detailed forensic command errors (stdout/stderr) when UniVerse commands fail. |
 **Filtering logic:** The reaper now only selects processes that are *orphaned* (parent PID = 1) and have been running longer than `REAPER_MIN_UPTIME` minutes. This prevents killing short‑lived or child processes that still have a living parent.
 
 **Example service file snippet** (`/lib/systemd/system/process-reaper.service`):

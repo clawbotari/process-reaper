@@ -46,7 +46,7 @@ func (k *Killer) Kill(pid int32) error {
 		k.Audit.LogForensic(pid, true)
 	}
 	// Log that forensic collection is complete
-	k.Audit.Log("forensic", fmt.Sprintf("%d", pid), fmt.Sprintf("Forensic collection finished. Proceeding to kill PID %d", pid))
+	k.Audit.Log("forensic", fmt.Sprintf("%d", pid), fmt.Sprintf("Forensic JSON report generated for PID %d", pid))
 
 	// Audit mode: do not send signals
 	if !k.KillEnabled {
@@ -56,7 +56,7 @@ func (k *Killer) Kill(pid int32) error {
 	}
 
 	// Log termination
-	k.Audit.Log("kill", fmt.Sprintf("%d", pid), fmt.Sprintf("Terminating PID %d", pid))
+	k.Audit.Log("kill", fmt.Sprintf("%d", pid), fmt.Sprintf("[Action] Terminating PID %d", pid))
 	// 2. Send SIGTERM
 	if err := k.sendSignal(pid, syscall.SIGTERM); err != nil {
 		k.Audit.LogKill(pid, "SIGTERM", false, err.Error())

@@ -18,6 +18,7 @@ const (
 	DefaultMinUptime    = 5   // minutes
 	DefaultRetentionDays = 30  // days
 	DefaultDebugForensic = false // REAPER_DEBUG_FORENSIC: log detailed forensic command errors
+	DefaultUVDir        = "/usr/uv" // REAPER_UV_DIR default installation path
 )
 
 // Config holds all reaper configuration parsed from environment variables.
@@ -80,7 +81,11 @@ func Load() (*Config, error) {
 	// REAPER_UV_DIR (optional)
 	// REAPER_DEBUG_FORENSIC
 	debugForensic := parseBoolEnv("REAPER_DEBUG_FORENSIC", DefaultDebugForensic)
-	uvDir := strings.TrimRight(os.Getenv("REAPER_UV_DIR"), "/")
+	uvDirEnv := strings.TrimRight(os.Getenv("REAPER_UV_DIR"), "/")
+	uvDir := uvDirEnv
+	if uvDir == "" {
+		uvDir = DefaultUVDir
+	}
 	var uvDebug string
 	if uvDir != "" {
 		// Verify directory exists

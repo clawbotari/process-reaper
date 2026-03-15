@@ -16,7 +16,7 @@ import (
 	"path/filepath"
 )
 
-const version = "1.2.8"
+const version = "1.2.9"
 
 
 // setupLogging configures logging to write both to stdout and a rolling log file.
@@ -123,7 +123,7 @@ func scanAndKill(cfg *config.Config, killer *reaper.Killer, audit *logging.Audit
 	}
 
 	for _, proc := range matches {
-		log.Printf("Processing PID %d (%s)", proc.PID, proc.Cmdline)
+		log.Printf("[Forensic] Analyzing PID %d (%s)", proc.PID, proc.Cmdline)
 		if err := killer.Kill(proc.PID); err != nil {
 			log.Printf("Failed to kill PID %d: %v", proc.PID, err)
 		}
