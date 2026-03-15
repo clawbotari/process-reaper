@@ -41,9 +41,12 @@ func (k *Killer) Kill(pid int32) error {
 	// 1. Forensic recording (including UniVerse data if configured)
 	if err := forensic.Record(k.LogDir, k.UVDir, k.UVDebug, pid, k.DebugForensic); err != nil {
 		k.Audit.LogForensic(pid, false)
-		return fmt.Errorf("forensic recording failed for PID %d: %w", pid, err)
+		// Do not block kill flow; continue
+	} else {
+		k.Audit.LogForensic(pid, true)
 	}
-	k.Audit.LogForensic(pid, true)
+	// Log that forensic collection is complete
+	k.Audit.Log("forensic", fmt.Sprintf("%%d", pid), fmt.Sprintf("Forensic collection finished. Proceeding to kill PID %%d", pid))
 
 	// Audit mode: do not send signals
 	if !k.KillEnabled {

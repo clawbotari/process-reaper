@@ -16,7 +16,7 @@ import (
 	"path/filepath"
 )
 
-const version = "1.2.7"
+const version = "1.2.8"
 
 
 // setupLogging configures logging to write both to stdout and a rolling log file.

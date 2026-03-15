@@ -54,9 +54,11 @@ func CollectUVData(pid int32, uvDir, uvDebug string, debug bool) UVData {
 		stdout = strings.TrimSpace(outBuf.String())
 		stderr = strings.TrimSpace(errBuf.String())
 		if debug && (err != nil || stdout == "") {
-			log.Printf("[DEBUG forensic] cmd=/usr/bin/env -i TERM=vt100 %s args=%v", uvBin, args)
-			log.Printf("[DEBUG forensic] working dir=%s", uvDir)
-			log.Printf("[DEBUG forensic] stdout=%q stderr=%q error=%v", stdout, stderr, err)
+						// Build the exact command line as it would appear in a shell
+						cmdLine := strings.Join(append([]string{"/usr/bin/env", "-i", "TERM=vt100", uvBin}, args...), " ")
+						log.Printf("[DEBUG forensic] cmd=%s", cmdLine)
+						log.Printf("[DEBUG forensic] working dir=%s", uvDir)
+						log.Printf("[DEBUG forensic] stdout=%q stderr=%q error=%v", stdout, stderr, err)
 		}
 		return
 	}
