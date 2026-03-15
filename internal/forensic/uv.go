@@ -32,28 +32,19 @@ func CollectUVData(pid int32, uvDir, uvDebug string, debug bool) UVData {
 	}
 
 	// Ensure commands are executed inside the UniVerse installation directory
-	// Prepare environment for UniVerse commands
-	baseEnv := os.Environ()
-	uvEnv := make([]string, len(baseEnv))
-	copy(uvEnv, baseEnv)
-	uvEnv = append(uvEnv, "UVHOME="+uvDir)
-	// Prepend uvDir/bin to PATH
-	pathFound := false
-	for i, e := range uvEnv {
-		if strings.HasPrefix(e, "PATH=") {
-			uvEnv[i] = "PATH=" + filepath.Join(uvDir, "bin") + ":" + strings.TrimPrefix(e, "PATH=")
-			pathFound = true
-			break
+	// Debug: log original environment if debug is enabled
+	if debug {
+		log.Printf("[DEBUG forensic] original environment (%d variables):", len(os.Environ()))
+		for _, e := range os.Environ() {
+			log.Printf("[DEBUG forensic]   %s", e)
 		}
-	}
-	if !pathFound {
-		uvEnv = append(uvEnv, "PATH="+filepath.Join(uvDir, "bin")+":"+os.Getenv("PATH"))
 	}
 
 	runUV := func(cmd string, args ...string) (stdout, stderr string, err error) {
 		c := exec.Command(cmd, args...)
 		c.Dir = uvDir
-		c.Env = uvEnv
+		// Clean environment: only TERM=vt100 (no inherited variables)
+		c.Env = []string{"TERM=vt100"}
 		var outBuf, errBuf bytes.Buffer
 		c.Stdout = &outBuf
 		c.Stderr = &errBuf
@@ -62,12 +53,11 @@ func CollectUVData(pid int32, uvDir, uvDebug string, debug bool) UVData {
 		stderr = strings.TrimSpace(errBuf.String())
 		if debug && (err != nil || stdout == "") {
 			log.Printf("[DEBUG forensic] cmd=%s args=%v", cmd, args)
-			log.Printf("[DEBUG forensic] UVHOME=%s PATH prefixed with %s/bin", uvDir, uvDir)
+			log.Printf("[DEBUG forensic] clean environment (TERM=vt100), working dir=%s", uvDir)
 			log.Printf("[DEBUG forensic] stdout=%q stderr=%q error=%v", stdout, stderr, err)
 		}
 		return
 	}
-
 	// 1. port.status
 	stdout, stderr, err := runUV(filepath.Join(uvDir, "bin", "port.status"), "PID", fmt.Sprintf("%d", pid), "LAYER.STACK", "FILEMAP")
 	if err != nil || stdout == "" {
