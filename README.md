@@ -1,5 +1,5 @@
 # Intelligent Process Reaper
-**v1.2.8** – Fixes log overlap on service restart and improves UniVerse forensic robustness.
+**v1.2.9** – Fixes log overlap on service restart and improves UniVerse forensic robustness.
 
 ![Go Version](https://img.shields.io/badge/go-1.26.1-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -22,8 +22,8 @@ A standalone Go daemon for Linux that identifies, analyzes, and kills hanging pr
 
 **Debian/Ubuntu**
 ```bash
-wget https://github.com/clawbotari/process-reaper/releases/download/v1.2.8/process-reaper_1.2.8_amd64.deb
-sudo dpkg -i process-reaper_1.2.8_amd64.deb
+wget https://github.com/clawbotari/process-reaper/releases/download/v1.2.9/process-reaper_1.2.9_amd64.deb
+sudo dpkg -i process-reaper_1.2.9_amd64.deb
 ```
 
 
@@ -33,8 +33,8 @@ sudo systemctl daemon-reload && sudo systemctl restart process-reaper
 ```
 **RHEL/CentOS/Fedora**
 ```bash
-wget https://github.com/clawbotari/process-reaper/releases/download/v1.2.8/process-reaper-1.2.8-1.x86_64.rpm
-sudo rpm -i process-reaper-1.2.8-1.x86_64.rpm
+wget https://github.com/clawbotari/process-reaper/releases/download/v1.2.9/process-reaper-1.2.9-1.x86_64.rpm
+sudo rpm -i process-reaper-1.2.9-1.x86_64.rpm
 ```
 
 After installation, edit the systemd service file to set your pattern and other options:
