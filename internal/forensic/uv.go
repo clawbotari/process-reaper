@@ -40,11 +40,13 @@ func CollectUVData(pid int32, uvDir, uvDebug string, debug bool) UVData {
 		}
 	}
 
-	runUV := func(cmd string, args ...string) (stdout, stderr string, err error) {
-		c := exec.Command(cmd, args...)
+	runUV := func(uvBin string, args ...string) (stdout, stderr string, err error) {
+		// Use /usr/bin/env -i to ensure completely clean environment
+		envArgs := []string{"-i", "TERM=vt100", uvBin}
+		envArgs = append(envArgs, args...)
+		c := exec.Command("/usr/bin/env", envArgs...)
 		c.Dir = uvDir
-		// Clean environment: only TERM=vt100 (no inherited variables)
-		c.Env = []string{"TERM=vt100"}
+		c.Env = []string{} // reinforce empty environment
 		var outBuf, errBuf bytes.Buffer
 		c.Stdout = &outBuf
 		c.Stderr = &errBuf
@@ -52,8 +54,8 @@ func CollectUVData(pid int32, uvDir, uvDebug string, debug bool) UVData {
 		stdout = strings.TrimSpace(outBuf.String())
 		stderr = strings.TrimSpace(errBuf.String())
 		if debug && (err != nil || stdout == "") {
-			log.Printf("[DEBUG forensic] cmd=%s args=%v", cmd, args)
-			log.Printf("[DEBUG forensic] clean environment (TERM=vt100), working dir=%s", uvDir)
+			log.Printf("[DEBUG forensic] cmd=/usr/bin/env -i TERM=vt100 %s args=%v", uvBin, args)
+			log.Printf("[DEBUG forensic] working dir=%s", uvDir)
 			log.Printf("[DEBUG forensic] stdout=%q stderr=%q error=%v", stdout, stderr, err)
 		}
 		return

@@ -48,9 +48,12 @@ func (k *Killer) Kill(pid int32) error {
 	// Audit mode: do not send signals
 	if !k.KillEnabled {
 		k.Audit.Log("audit", fmt.Sprintf("%d", pid), "process identified but not killed")
+		k.Audit.Log("audit", fmt.Sprintf("%d", pid), fmt.Sprintf("Auditing PID %d (no kill)", pid))
 		return nil
 	}
 
+	// Log termination
+	k.Audit.Log("kill", fmt.Sprintf("%d", pid), fmt.Sprintf("Terminating PID %d", pid))
 	// 2. Send SIGTERM
 	if err := k.sendSignal(pid, syscall.SIGTERM); err != nil {
 		k.Audit.LogKill(pid, "SIGTERM", false, err.Error())
