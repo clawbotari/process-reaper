@@ -46,7 +46,7 @@ func (k *Killer) Kill(pid int32) error {
 		k.Audit.LogForensic(pid, true)
 	}
 	// Log that forensic collection is complete
-	k.Audit.Log("forensic", fmt.Sprintf("%%d", pid), fmt.Sprintf("Forensic collection finished. Proceeding to kill PID %%d", pid))
+	k.Audit.Log("forensic", fmt.Sprintf("%d", pid), fmt.Sprintf("Forensic collection finished. Proceeding to kill PID %d", pid))
 
 	// Audit mode: do not send signals
 	if !k.KillEnabled {
