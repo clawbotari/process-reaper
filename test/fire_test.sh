@@ -2,17 +2,40 @@
 set -e
 echo "=== Intelligent Process Reaper Fire Test ==="
 
+if [[ "$(uname -s)" != "Linux" ]]; then
+    echo "SKIP: fire_test.sh requires Linux /proc and orphan-process semantics."
+    echo "Run bash scripts/validate-rocky9.sh for the primary Linux validation path."
+    exit 0
+fi
+
 # Clean up previous test
 rm -rf /tmp/reaper_fire_test
 mkdir -p /tmp/reaper_fire_test
 
 # Kill any remaining hanging processes
-pkill -f "python3.*hanging" 2>/dev/null || true
+pkill -f "hanging-test-process" 2>/dev/null || true
 sleep 0.5
 
 # Start hanging process
-python3 test/hanging.py > /tmp/hanging.out 2>&1 &
-HANG_PID=$!
+rm -f /tmp/hanging.pid
+python3 test/hanging.py hanging-test-process > /tmp/hanging.out 2>&1 &
+TEST_SPAWNER_PID=$!
+echo "Spawner PID: $TEST_SPAWNER_PID"
+
+for _ in {1..20}; do
+    if [[ -f /tmp/hanging.pid ]]; then
+        break
+    fi
+    sleep 0.2
+done
+
+if [[ ! -f /tmp/hanging.pid ]]; then
+    echo "ERROR: hanging test process did not publish a PID"
+    cat /tmp/hanging.out 2>/dev/null || true
+    exit 1
+fi
+
+HANG_PID=$(cat /tmp/hanging.pid)
 echo "Hanging process PID: $HANG_PID"
 sleep 0.5
 
@@ -30,11 +53,13 @@ if [[ ! -f ./process-reaper ]]; then
 fi
 
 # Run reaper with pattern that matches the hanging process
-echo "Starting reaper (pattern='python3.*hanging')..."
-REAPER_PATTERN="python3.*hanging" \
+echo "Starting reaper (pattern='hanging-test-process')..."
+REAPER_PATTERN="hanging-test-process" \
 REAPER_INTERVAL=1 \
 REAPER_LOG_DIR=/tmp/reaper_fire_test \
 REAPER_GRACE_PERIOD=2 \
+REAPER_MIN_UPTIME=0 \
+REAPER_UV_DIR= \
 ./process-reaper > /tmp/reaper.out 2>&1 &
 REAPER_PID=$!
 echo "Reaper PID: $REAPER_PID"
@@ -57,10 +82,10 @@ else
 fi
 
 # Verify forensic JSON was created
-JSON_COUNT=$(find /tmp/reaper_fire_test -name "reaper_*.json" -type f | wc -l)
+JSON_COUNT=$(find /tmp/reaper_fire_test/forensics -name "reaper_*.json" -type f | wc -l)
 if [[ $JSON_COUNT -gt 0 ]]; then
     echo "SUCCESS: $JSON_COUNT forensic JSON file(s) created."
-    ls -la /tmp/reaper_fire_test/*.json 2>/dev/null || true
+    ls -la /tmp/reaper_fire_test/forensics/*.json 2>/dev/null || true
 else
     echo "FAIL: No forensic JSON found."
     exit 1

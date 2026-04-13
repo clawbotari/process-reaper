@@ -24,7 +24,7 @@ func NewAudit(logDir string) (*Audit, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot open audit log %s: %w", logPath, err)
 	}
-	logger := log.New(file, "", log.LstdFlags)
+	logger := log.New(file, "", 0)
 	return &Audit{logger: logger, file: file}, nil
 }
 

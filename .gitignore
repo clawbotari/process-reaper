@@ -1,5 +1,6 @@
 # Binaries
 process-reaper
+!etc/logrotate.d/process-reaper
 *.exe
 *.out
 

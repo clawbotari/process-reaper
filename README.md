@@ -1,24 +1,24 @@
 # Intelligent Process Reaper
-**v1.2.9** – Fixes log overlap on service restart and improves UniVerse forensic robustness.
+**v1.2.9** – Linux process reaper with forensic capture, audit logging, and optional UniVerse integration.
 
 ![Go Version](https://img.shields.io/badge/go-1.26.1-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-linux-lightgrey)
 
-A standalone Go daemon for Linux that identifies, analyzes, and kills hanging processes based on configurable regex patterns. Designed for production servers, it collects forensic data before termination, respects grace periods, and logs every action for audit.
+Intelligent Process Reaper is a standalone Go daemon for Linux that identifies orphaned processes whose command lines match a configurable regular expression, captures forensic data, and terminates them with a SIGTERM-to-SIGKILL flow.
 
-**Key Features**
-- **Regex‑based targeting** – match processes by command‑line pattern
-- **Forensic data collection** – RSS/VMS, open files, execution time saved as JSON
-- **Graceful termination** – SIGTERM → configurable grace period → SIGKILL
-- **Self‑exclusion** – never targets its own PID or PID 1 (systemd/init)
-- **Audit logging** – structured log of every scan, forensic capture, and kill
-- **Static binary** – zero dependencies, ready to deploy on any Linux amd64 system
-- **Systemd‑native** – runs as a service with environment‑based configuration
+## Key Features
+- Regex-based targeting over process command lines
+- Forensic JSON capture before termination
+- Audit log for scans, forensic collection, and signals
+- Grace period between SIGTERM and SIGKILL
+- Safety filters for self-exclusion, PID 1 exclusion, orphan-only matching, and minimum uptime
+- Optional UniVerse forensic extensions
+- Systemd-ready deployment with environment-based configuration
 
 ## Quick Start
 
-### Install from .deb or .rpm (recommended)
+### Install from packages
 
 **Debian/Ubuntu**
 ```bash
@@ -26,113 +26,90 @@ wget https://github.com/clawbotari/process-reaper/releases/download/v1.2.9/proce
 sudo dpkg -i process-reaper_1.2.9_amd64.deb
 ```
 
-
-**Operational note:** After changing any variable in the systemd service file, run:
-```bash
-sudo systemctl daemon-reload && sudo systemctl restart process-reaper
-```
 **RHEL/CentOS/Fedora**
 ```bash
 wget https://github.com/clawbotari/process-reaper/releases/download/v1.2.9/process-reaper-1.2.9-1.x86_64.rpm
 sudo rpm -i process-reaper-1.2.9-1.x86_64.rpm
 ```
 
-After installation, edit the systemd service file to set your pattern and other options:
+After installation, edit the packaged service file and reload systemd:
 ```bash
 sudo nano /lib/systemd/system/process-reaper.service
-```
-
-Then start and enable the service:
-```bash
 sudo systemctl daemon-reload
-sudo systemctl start process-reaper
-sudo systemctl enable process-reaper
+sudo systemctl restart process-reaper
 ```
 
-### Manual installation (from source)
-
+### Manual install from source
 ```bash
 git clone https://github.com/clawbotari/process-reaper.git
 cd process-reaper
 CGO_ENABLED=0 go build -o process-reaper ./cmd/process-reaper
 sudo cp process-reaper /usr/local/bin/
 sudo mkdir -p /var/log/process-reaper
-sudo cp process-reaper.service /lib/systemd/system/
+sudo cp process-reaper.service /etc/systemd/system/
 sudo systemctl daemon-reload
 ```
 
 ## Configuration
 
-The reaper is configured exclusively through environment variables, which are best set in the systemd service file.
+The daemon is configured with environment variables, usually in the systemd unit.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `REAPER_PATTERN` | `.*` | Regular expression to match against process command lines. |
+| `REAPER_PATTERN` | `.*` | Regular expression matched against process command lines. |
 | `REAPER_INTERVAL` | `60` | Scan interval in seconds. |
-| `REAPER_LOG_DIR` | `/var/log/process-reaper` | Directory for forensic JSON files and audit log. |
+| `REAPER_LOG_DIR` | `/var/log/process-reaper` | Base directory for the audit log, service log, and forensic files. |
 | `REAPER_GRACE_PERIOD` | `10` | Seconds to wait between SIGTERM and SIGKILL. |
-| `REAPER_MIN_UPTIME` | `5` | Minimum process age in minutes (only processes older than this are considered). |
+| `REAPER_MIN_UPTIME` | `5` | Minimum process age in minutes before a match is considered killable. |
 | `REAPER_HEARTBEAT_QUIET` | `false` | Suppress heartbeat logs when no candidates are found. |
-| `REAPER_KILL` | `true` | If `false`, the reaper only logs and collects forensic data (audit mode). |
-| `REAPER_UV_DIR` | */usr/uv* | Path to UniVerse installation directory (enables deep forensic collection for `uvapi_slave` processes). |
-| `REAPER_UV_DEBUG` | *(auto‑detected)* | Path to UniVerse debug directory (read from `serverdebug`). |
-| `REAPER_RETENTION_DAYS` | `30` | Forensic file retention in days (automatic cleanup). |
-| `REAPER_DEBUG_FORENSIC` | `false` | Log detailed forensic command errors (stdout/stderr) when UniVerse commands fail. |
-**Filtering logic:** The reaper now only selects processes that are *orphaned* (parent PID = 1) and have been running longer than `REAPER_MIN_UPTIME` minutes. This prevents killing short‑lived or child processes that still have a living parent.
+| `REAPER_KILL` | `true` | If `false`, collect forensic data and audit only. |
+| `REAPER_UV_DIR` | disabled | UniVerse installation directory. When unset, UniVerse integration is off. |
+| `REAPER_UV_DEBUG` | auto-detected | Optional UniVerse debug directory override. Used only when `REAPER_UV_DIR` is set. |
+| `REAPER_RETENTION_DAYS` | `30` | Retention period for forensic `.json` and copied `.gz` debug artifacts. |
+| `REAPER_DEBUG_FORENSIC` | `false` | Emit detailed UniVerse forensic command diagnostics without dumping the full process environment. |
 
-**Example service file snippet** (`/lib/systemd/system/process-reaper.service`):
+Filtering behavior:
+- Only orphaned processes are considered (`PPID == 1`).
+- PID 1 and the reaper's own PID are always excluded.
+- Processes younger than `REAPER_MIN_UPTIME` are skipped.
+
+Example service configuration:
 ```ini
 [Service]
-Environment=REAPER_PATTERN=python3.*myapp.*
+Environment=REAPER_PATTERN=python3.*worker.*
 Environment=REAPER_INTERVAL=30
 Environment=REAPER_LOG_DIR=/var/log/process-reaper
 Environment=REAPER_GRACE_PERIOD=5
 Environment=REAPER_MIN_UPTIME=5
 Environment=REAPER_HEARTBEAT_QUIET=false
 Environment=REAPER_KILL=true
-Environment=REAPER_UV_DIR=/opt/uv
-Environment=REAPER_UV_DEBUG=/opt/uv/debug
+# Optional UniVerse integration:
+# Environment=REAPER_UV_DIR=/usr/uv
+# Environment=REAPER_UV_DEBUG=/usr/uv/uvdebug
 ```
 
+## UniVerse Integration
 
-## UniVerse Deep Forensic Integration
+When `REAPER_UV_DIR` is set, the reaper enriches forensic reports with UniVerse data:
 
-When `REAPER_UV_DIR` is set and the pattern matches `uvapi_slave`, the reaper performs extended forensic collection for UniVerse processes:
+- `port_status` from `bin/port.status`
+- `list_readu` lock information
+- `user_no` extracted from `listuser` or `list_readu`
+- `uv_debug_file` when a matching debug file is found
+- `uv_error` extracted from the debug file
+- `uv_file` extracted from the debug file
 
-1. **Initialization** – Reads `serverdebug` inside `REAPER_UV_DIR` to locate the debug directory (`REAPER_UV_DEBUG`).
-2. **Extended forensic fields** (added to the JSON report):
-   - `port_status` – Output of `bin/port.status PID … LAYER.STACK FILEMAP`.
-   - `list_readu` – Lock information for the process's USERNO.
-   - `user_no` – USERNO extracted via `bin/listuser` or `bin/list_readu`.
-   - `uv_debug_file` – Name of the UniVerse debug file containing the PID.
-   - `uv_error` – Last `returncode=` found in the debug file.
-   - `uv_file` – Last `arg[0]=` (file path) from the debug file.
-   - `uv_ps` – Output of `ps -fp PID --no-headers`.
-3. **Debug file preservation** – The relevant debug file is copied to `REAPER_LOG_DIR` and compressed (`.gz`).
+If `REAPER_UV_DEBUG` is unset, the reaper attempts to derive the debug directory from `serverdebug`. Failures in UniVerse helpers never block process termination.
 
-All UniVerse commands are executed with the working directory set to `REAPER_UV_DIR`. If a command fails or a path is missing, the error is logged and the reaper continues (no blocking).
+## Forensic Output
 
-## Usage Examples
+Forensic reports are written under `REAPER_LOG_DIR/forensics/` with names like:
 
-| Scenario | Pattern | Description |
-|----------|---------|-------------|
-| **UVAPI Slave processes** | `uvapi_slave` | Cleans up child processes of the API that became orphaned after a main process crash. |
-| **Python generic workers** | `python3.*worker\.py` | Locates worker scripts that often hang in background tasks. |
-| **Java leaking processes** | `java.*-jar.*myapp\.jar` | For Java applications that fail to close threads properly after a crash. |
+```text
+reaper_12345_20260306_183456.json
+```
 
-## Pattern Examples
-
-| Use case | Pattern | Notes |
-|----------|---------|-------|
-| **Python workers stuck in a loop** | `python3.*worker.*` | Matches any Python command containing “worker”. |
-| **Java processes leaking memory** | `java.*-Xmx4G` | Targets Java processes with a specific heap flag. |
-| **Zombie cron jobs** | `bash.*/home/.*/script.sh` | Catches user‑space bash scripts that have hung. |
-| **Custom binary with a known path** | `/opt/myapp/bin/daemon` | Exact path matching. |
-| **Multiple patterns** | `(python3.*flask|node.*server)` | Combined regex for several application types. |
-
-## Forensic Data
-
-Before sending SIGTERM, the reaper collects the following information and writes it as a timestamped JSON file in `REAPER_LOG_DIR` (e.g., `reaper_12345_20260306_183456.json`):
+Example fields:
 
 ```json
 {
@@ -150,65 +127,79 @@ Before sending SIGTERM, the reaper collects the following information and writes
 }
 ```
 
+When UniVerse debug files are copied, they are compressed into the same `forensics/` directory as `.gz` files.
+
 ## Audit Log
 
-All actions are recorded in `REAPER_LOG_DIR/process-reaper-audit.log` with the following format:
+Audit entries are written to:
+
+```text
+REAPER_LOG_DIR/process-reaper-audit.log
 ```
+
+Format:
+
+```text
 [2026-03-06T18:34:56Z] action=forensic pid=12345 collection=success
 [2026-03-06T18:34:56Z] action=kill pid=12345 signal=SIGTERM status=success
 [2026-03-06T18:34:58Z] action=terminated pid=12345 process exited after SIGTERM
 [2026-03-06T18:34:59Z] action=scan pid= found 0 matching processes
 ```
 
-## Safety Mechanisms
-
-1. **Self‑exclusion** – The reaper never selects its own PID.
-2. **PID 1 protection** – The init/systemd process is always excluded, even if the pattern matches.
-3. **Grace period** – Processes that exit cleanly after SIGTERM are not forcefully killed.
-4. **Error‑handling** – Failures in forensic collection or signalling are logged and do not crash the daemon.
-
 ## Development
 
-### Building a static binary
+### Build
 ```bash
 CGO_ENABLED=0 go build -o process-reaper ./cmd/process-reaper
 ```
 
-### Running the integration test
+### Validate
 ```bash
+go vet ./...
+go test ./...
+go build ./...
 bash test/fire_test.sh
 ```
 
-### Creating distribution packages
-Install `nfpm` (`go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest`), then:
+### Rocky Linux 9 Test Bed
+
+The repository includes a Rocky Linux 9 Docker-based validation environment for Linux-targeted checks, integration testing, and packaging:
+
 ```bash
-# Build binary first
+bash scripts/validate-rocky9.sh
+```
+
+The script builds `docker/rocky9/Dockerfile`, mounts the current checkout into the container, and runs:
+- `go vet ./...`
+- `go test ./...`
+- `go build ./...`
+- `bash test/fire_test.sh`
+- RPM and DEB packaging with `nfpm`
+
+### Package
+Install `nfpm` first:
+```bash
+go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+```
+
+Then build the release binary and create the output directory:
+```bash
+mkdir -p build dist
 CGO_ENABLED=0 go build -o build/process-reaper ./cmd/process-reaper
-# Generate .deb and .rpm
 nfpm package --config nfpm.yaml --target dist/ --packager deb
 nfpm package --config nfpm.yaml --target dist/ --packager rpm
 ```
 
-### Project structure
-```
-process-reaper/
-├── cmd/process-reaper/main.go          # Daemon entry point
-├── internal/config/config.go           # Environment variable parsing
-├── internal/reaper/scanner.go          # PID scanning with regex & exclusions
-├── internal/reaper/killer.go           # SIGTERM → grace → SIGKILL logic
-├── internal/forensic/recorder.go       # Forensic JSON writer
-├── internal/logging/audit.go           # Audit log manager
-├── test/                              # Integration tests
-├── scripts/                           # Packaging scripts
-├── nfpm.yaml                          # Package configuration
-├── process-reaper.service             # Systemd unit
-└── go.mod (gopsutil/v3 dependency)
-```
+### Integration Test
+`test/fire_test.sh` is Linux-only. It starts a daemonized Python process, reads the actual orphan PID from `/tmp/hanging.pid`, runs the reaper with `REAPER_MIN_UPTIME=0` and UniVerse disabled, and verifies both termination and forensic output under `/tmp/reaper_fire_test/forensics`. On non-Linux hosts it exits with a skip message and points to `scripts/validate-rocky9.sh`.
+
+## Validation Matrix
+
+- `go vet`, `go test`, and `go build` are expected to pass anywhere the Go toolchain supports the code.
+- The integration test is Unix-oriented.
+- The daemon, packaging, and systemd unit are intended for Linux deployments.
+- `scripts/validate-rocky9.sh` is the primary Linux validation path for this repository.
 
 ## License
 
-MIT – see [LICENSE](LICENSE) file.
-
-## Author
-
-Ari Ben Canaan (🦞) – Senior Systems Programmer & DevOps Engineer – [clawbotari](https://github.com/clawbotari)
+MIT – see [LICENSE](LICENSE).

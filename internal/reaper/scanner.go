@@ -10,14 +10,14 @@ import (
 
 // ProcessInfo holds forensic data about a process.
 type ProcessInfo struct {
-	PID         int32    `json:"pid"`
-	Cmdline     string   `json:"cmdline"`
-	Executable  string   `json:"executable,omitempty"`
-	RSS         uint64   `json:"rss_bytes"`  // Resident Set Size
-	VMS         uint64   `json:"vms_bytes"`  // Virtual Memory Size
-	OpenFiles   []string `json:"open_files,omitempty"`
-	CreateTime  int64    `json:"create_time"`
-	CPUPercent  float64  `json:"cpu_percent,omitempty"`
+	PID        int32    `json:"pid"`
+	Cmdline    string   `json:"cmdline"`
+	Executable string   `json:"executable,omitempty"`
+	RSS        uint64   `json:"rss_bytes"` // Resident Set Size
+	VMS        uint64   `json:"vms_bytes"` // Virtual Memory Size
+	OpenFiles  []string `json:"open_files,omitempty"`
+	CreateTime int64    `json:"create_time"`
+	CPUPercent float64  `json:"cpu_percent,omitempty"`
 }
 
 // Scan returns all processes whose command line matches the given regex,
@@ -74,7 +74,7 @@ func Scan(pattern *regexp.Regexp, minUptime time.Duration, requireOrphan bool, e
 			if err != nil {
 				continue
 			}
-			uptime := time.Since(time.Unix(create/1000, 0))
+			uptime := time.Since(time.UnixMilli(create))
 			if uptime < minUptime {
 				continue
 			}

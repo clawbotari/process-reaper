@@ -13,8 +13,10 @@ Environment=REAPER_INTERVAL=60
 Environment=REAPER_LOG_DIR=/var/log/process-reaper
 Environment=REAPER_GRACE_PERIOD=10
 Environment=REAPER_MIN_UPTIME=5
-# UniVerse deep forensic integration (optional)
-Environment=REAPER_UV_DIR=/usr/uv
+# UniVerse deep forensic integration is disabled by default.
+# Uncomment REAPER_UV_DIR to enable it and optionally set REAPER_UV_DEBUG to override auto-detection.
+# Environment=REAPER_UV_DIR=/usr/uv
+# Environment=REAPER_UV_DEBUG=/usr/uv/uvdebug
 # Audit mode: if false, only log & collect forensic data
 Environment=REAPER_KILL=true
 # Suppress heartbeat logs when no candidates are found

@@ -11,7 +11,7 @@ def spawn_test_process(name):
     """
     Double‑fork daemonization that ensures the final process:
       - Has PPID = 1 (adopted by systemd/init)
-      - Shows `name` as its argv[0] (visible in /proc/.../cmdline)
+      - Keeps `name` visible in the process command line
       - Runs an infinite sleep loop.
     Returns the PID of the spawned process to the original caller.
     """
@@ -37,14 +37,15 @@ def spawn_test_process(name):
 
         # Final child process – will be orphaned (PPID = 1)
         # Replace ourselves with a Python interpreter that runs an infinite loop,
-        # using `name` as argv[0] so it appears in the command line.
+        # passing `name` as an extra argv token so the reaper can match it reliably.
         os.execlp(
             "python3",
-            name,                     # argv[0] – appears as process name
+            "python3",
             "-c",
             "import time\n"
             "while True:\n"
-            "    time.sleep(10)\n"
+            "    time.sleep(10)\n",
+            name,
         )
         # exec never returns unless it fails
     except Exception as e:
