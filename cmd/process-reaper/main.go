@@ -9,32 +9,31 @@ import (
 	"syscall"
 	"time"
 
-	"process-reaper/internal/config"
-	"process-reaper/internal/logging"
-	"process-reaper/internal/forensic"
-	"process-reaper/internal/reaper"
 	"path/filepath"
+	"process-reaper/internal/config"
+	"process-reaper/internal/forensic"
+	"process-reaper/internal/logging"
+	"process-reaper/internal/reaper"
 )
 
 const version = "1.2.9"
 
-
-// setupLogging configures logging to write both to stdout and a rolling log file.
 // ensureDirectories creates the log and forensic directories if they do not exist.
 func ensureDirectories(logDir string) error {
 	if err := os.MkdirAll(logDir, 0755); err != nil {
-		return fmt.Errorf("cannot create log directory: %%w", err)
+		return fmt.Errorf("cannot create log directory: %w", err)
 	}
 	forensicDir := filepath.Join(logDir, "forensics")
 	if err := os.MkdirAll(forensicDir, 0755); err != nil {
-		return fmt.Errorf("cannot create forensic directory: %%w", err)
+		return fmt.Errorf("cannot create forensic directory: %w", err)
 	}
 	return nil
 }
+
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	// Force a welcome message to flush systemd pipe
-	fmt.Fprintln(os.Stdout, "Process Reaper " + version + " starting (log flush)")
+	fmt.Fprintln(os.Stdout, "Process Reaper "+version+" starting (log flush)")
 	log.Printf("Process Reaper v%s initializing", version)
 	os.Stderr.Sync() // ensure log visibility on restart
 	log.Printf("Intelligent Process Reaper v%s starting", version)
@@ -107,13 +106,13 @@ func scanAndKill(cfg *config.Config, killer *reaper.Killer, audit *logging.Audit
 		return fmt.Errorf("scan failed: %w", err)
 	}
 	audit.LogScan(len(matches))
-		// Cleanup old forensic files
-		deleted, err := forensic.CleanupForensics(cfg.LogDir, cfg.RetentionDays)
-		if err != nil {
-			log.Printf("Cleanup failed: %%v", err)
-		} else if deleted > 0 {
-			log.Printf("[Maintenance] Deleted %%d old forensic files older than %%d days.", deleted, cfg.RetentionDays)
-		}
+	// Cleanup old forensic files
+	deleted, err := forensic.CleanupForensics(cfg.LogDir, cfg.RetentionDays)
+	if err != nil {
+		log.Printf("Cleanup failed: %v", err)
+	} else if deleted > 0 {
+		log.Printf("[Maintenance] Deleted %d old forensic files older than %d days.", deleted, cfg.RetentionDays)
+	}
 
 	if len(matches) == 0 {
 		if !cfg.HeartbeatQuiet {

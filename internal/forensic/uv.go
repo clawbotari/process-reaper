@@ -5,14 +5,16 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
+	"io/fs"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
-	"log"
 )
 
-// UVData holds UniVerse‑specific forensic information.
+// UVData holds UniVerse-specific forensic information.
 type UVData struct {
 	PortStatus  string `json:"port_status,omitempty"`
 	ListReadU   string `json:"list_readu,omitempty"`
@@ -22,47 +24,38 @@ type UVData struct {
 	UVFile      string `json:"uv_file,omitempty"`
 }
 
-// CollectUVData gathers UniVerse‑specific information for a process.
+// CollectUVData gathers UniVerse-specific information for a process.
 // If uvDir is empty or any command fails, the function returns an empty UVData
-// (no error is propagated, to avoid blocking the reaper).
+// so the reaper can continue terminating the target process.
 func CollectUVData(pid int32, uvDir, uvDebug string, debug bool) UVData {
 	var data UVData
 	if uvDir == "" {
 		return data
 	}
 
-	// Ensure commands are executed inside the UniVerse installation directory
-	// Debug: log original environment if debug is enabled
-	if debug {
-		log.Printf("[DEBUG forensic] original environment (%d variables):", len(os.Environ()))
-		for _, e := range os.Environ() {
-			log.Printf("[DEBUG forensic]   %s", e)
-		}
-	}
-
 	runUV := func(uvBin string, args ...string) (stdout, stderr string, err error) {
-		// Use /usr/bin/env -i to ensure completely clean environment
 		envArgs := []string{"-i", "TERM=vt100", uvBin}
 		envArgs = append(envArgs, args...)
-		c := exec.Command("/usr/bin/env", envArgs...)
-		c.Dir = uvDir
-		c.Env = []string{} // reinforce empty environment
+		cmd := exec.Command("/usr/bin/env", envArgs...)
+		cmd.Dir = uvDir
+		cmd.Env = []string{}
+
 		var outBuf, errBuf bytes.Buffer
-		c.Stdout = &outBuf
-		c.Stderr = &errBuf
-		err = c.Run()
+		cmd.Stdout = &outBuf
+		cmd.Stderr = &errBuf
+
+		err = cmd.Run()
 		stdout = strings.TrimSpace(outBuf.String())
 		stderr = strings.TrimSpace(errBuf.String())
 		if debug && (err != nil || stdout == "") {
-						// Build the exact command line as it would appear in a shell
-						cmdLine := strings.Join(append([]string{"/usr/bin/env", "-i", "TERM=vt100", uvBin}, args...), " ")
-						log.Printf("[DEBUG forensic] cmd=%s", cmdLine)
-						log.Printf("[DEBUG forensic] working dir=%s", uvDir)
-						log.Printf("[DEBUG forensic] stdout=%q stderr=%q error=%v", stdout, stderr, err)
+			cmdLine := strings.Join(append([]string{"/usr/bin/env", "-i", "TERM=vt100", uvBin}, args...), " ")
+			log.Printf("[DEBUG forensic] cmd=%s", cmdLine)
+			log.Printf("[DEBUG forensic] working dir=%s", uvDir)
+			log.Printf("[DEBUG forensic] stdout=%q stderr=%q error=%v", stdout, stderr, err)
 		}
 		return
 	}
-	// 1. port.status
+
 	stdout, stderr, err := runUV(filepath.Join(uvDir, "bin", "port.status"), "PID", fmt.Sprintf("%d", pid), "LAYER.STACK", "FILEMAP")
 	if err != nil || stdout == "" {
 		data.PortStatus = "No port status info or command failed"
@@ -72,7 +65,7 @@ func CollectUVData(pid int32, uvDir, uvDebug string, debug bool) UVData {
 	} else {
 		data.PortStatus = stdout
 	}
-	// 2. listuser / list_readu to find USERNO
+
 	userNo := ""
 	if stdout, _, err := runUV(filepath.Join(uvDir, "bin", "listuser")); err == nil {
 		scanner := bufio.NewScanner(strings.NewReader(stdout))
@@ -104,7 +97,6 @@ func CollectUVData(pid int32, uvDir, uvDebug string, debug bool) UVData {
 	}
 	data.UserNo = userNo
 
-	// 3. list_readu every USER $USERNO
 	if userNo != "" {
 		if stdout, _, err := runUV(filepath.Join(uvDir, "bin", "list_readu"), "every", "USER", userNo); err == nil {
 			data.ListReadU = stdout
@@ -113,13 +105,10 @@ func CollectUVData(pid int32, uvDir, uvDebug string, debug bool) UVData {
 		data.ListReadU = "No locks found"
 	}
 
-	// 4. Search for debug file containing the PID
 	if uvDebug != "" {
 		debugFile, err := findDebugFile(pid, uvDebug)
 		if err == nil && debugFile != "" {
 			data.UVDebugFile = filepath.Base(debugFile)
-			// Copy debug file compressed to log directory (if logDir known, caller will handle)
-			// Extract error and file info
 			uvError, uvFile := extractDebugInfo(debugFile)
 			data.UVError = uvError
 			data.UVFile = uvFile
@@ -131,17 +120,38 @@ func CollectUVData(pid int32, uvDir, uvDebug string, debug bool) UVData {
 
 // findDebugFile searches recursively in uvDebug for a file that contains the PID.
 func findDebugFile(pid int32, uvDebug string) (string, error) {
-	// Use grep -l for efficiency
-	cmd := exec.Command("grep", "-l", fmt.Sprintf("\\b%d\\b", pid), "-r", uvDebug)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &out
-	err := cmd.Run()
+	pidNeedle := fmt.Sprintf("%d", pid)
+	var match string
+
+	err := filepath.WalkDir(uvDebug, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || match != "" {
+			return err
+		}
+		if d.IsDir() || !d.Type().IsRegular() {
+			return nil
+		}
+
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return nil
+		}
+		if containsPIDToken(string(data), pidNeedle) {
+			match = path
+		}
+		return nil
+	})
 	if err != nil {
-		return "", fmt.Errorf("grep failed: %w", err)
+		return "", fmt.Errorf("walk debug directory %s: %w", uvDebug, err)
 	}
-	firstLine := strings.Split(out.String(), "\n")[0]
-	return strings.TrimSpace(firstLine), nil
+	if match == "" {
+		return "", fmt.Errorf("no debug file found for pid %s", pidNeedle)
+	}
+	return match, nil
+}
+
+func containsPIDToken(content, pid string) bool {
+	pattern := regexp.MustCompile(`(^|[^0-9])` + regexp.QuoteMeta(pid) + `([^0-9]|$)`)
+	return pattern.MatchString(content)
 }
 
 // extractDebugInfo reads the debug file and extracts returncode= and arg[0]= from last 20 lines.
@@ -151,7 +161,6 @@ func extractDebugInfo(path string) (errorStr, fileStr string) {
 		return "", ""
 	}
 	lines := strings.Split(string(data), "\n")
-	// Search from bottom up
 	start := len(lines) - 20
 	if start < 0 {
 		start = 0
@@ -188,6 +197,7 @@ func CopyDebugFile(srcDebugFile, logDir string) (string, error) {
 		return "", fmt.Errorf("cannot create gzip file: %w", err)
 	}
 	defer dest.Close()
+
 	gz := gzip.NewWriter(dest)
 	if _, err := gz.Write(data); err != nil {
 		return "", fmt.Errorf("cannot write compressed data: %w", err)
