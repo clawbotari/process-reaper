@@ -16,7 +16,7 @@ import (
 	"process-reaper/internal/reaper"
 )
 
-const version = "1.2.9"
+const version = "1.3.0"
 
 // ensureDirectories creates the log and forensic directories if they do not exist.
 func ensureDirectories(logDir string) error {

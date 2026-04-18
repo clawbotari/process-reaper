@@ -1,5 +1,5 @@
 # Intelligent Process Reaper
-**v1.2.9** – Linux process reaper with forensic capture, audit logging, and optional UniVerse integration.
+**v1.3.0** – Linux process reaper with forensic capture, audit logging, and optional UniVerse integration.
 
 ![Go Version](https://img.shields.io/badge/go-1.26.1-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -22,14 +22,14 @@ Intelligent Process Reaper is a standalone Go daemon for Linux that identifies o
 
 **Debian/Ubuntu**
 ```bash
-wget https://github.com/clawbotari/process-reaper/releases/download/v1.2.9/process-reaper_1.2.9_amd64.deb
-sudo dpkg -i process-reaper_1.2.9_amd64.deb
+wget https://github.com/clawbotari/process-reaper/releases/download/v1.3.0/process-reaper_1.3.0_amd64.deb
+sudo dpkg -i process-reaper_1.3.0_amd64.deb
 ```
 
 **RHEL/CentOS/Fedora**
 ```bash
-wget https://github.com/clawbotari/process-reaper/releases/download/v1.2.9/process-reaper-1.2.9-1.x86_64.rpm
-sudo rpm -i process-reaper-1.2.9-1.x86_64.rpm
+wget https://github.com/clawbotari/process-reaper/releases/download/v1.3.0/process-reaper-1.3.0-1.x86_64.rpm
+sudo rpm -i process-reaper-1.3.0-1.x86_64.rpm
 ```
 
 After installation, edit the packaged service file and reload systemd:
